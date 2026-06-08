@@ -1,0 +1,10 @@
+PUBG_Nationals 14:00 500
+Tekken_8_Showdown 12:30 500
+FIFA_Legends_Cup 13:45 550
+CSGO_Tactical_Rush 16:00 650
+Dota_2_Championship 17:15 700
+League_Of_Legends_Pro 18:00 750
+Valorant_Clash 15:30 600
+Fortnite_Frenzy 14:45 550
+Call_Of_Duty_Strike 16:30 600
+Apex_Legends_Finals 17:00 700
