@@ -31,7 +31,7 @@ public class App {
     int iconHeight = 90;
 
     ArrayList<Ticket> tickets;
-    LinkedList<Seat> seats;
+    ArrayList<Seat> seats;
 
     Stack<Seat> undoStack = new Stack<>();
     Stack<Seat> redoStack = new Stack<>();
@@ -152,12 +152,12 @@ public class App {
 
     @SuppressWarnings("unchecked")
     public void loadSeats(String fileName) {
-        seats = new LinkedList<>();
+        seats = new ArrayList<>();
         File file = new File("savedFiles/" + fileName + ".dat");
 
         if (file.exists()) {
             try (ObjectInputStream read = new ObjectInputStream(new FileInputStream(file))) {
-                seats = (LinkedList<Seat>) read.readObject();
+                seats = (ArrayList<Seat>) read.readObject();
             } catch (IOException | ClassNotFoundException e) {
                 JOptionPane.showMessageDialog(homeWindow, "Failed to load seat data.", "File Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -170,7 +170,7 @@ public class App {
         }
     }
 
-    public void saveSeatsToFile(LinkedList<Seat> seats, String title) {
+    public void saveSeatsToFile(ArrayList<Seat> seats, String title) {
         try {
             new File("savedFiles").mkdirs();
             try (ObjectOutputStream write = new ObjectOutputStream(new FileOutputStream("savedFiles/" + title + ".dat"))) {
