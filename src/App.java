@@ -3,7 +3,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 import java.io.*;
-import javax.swing.border.Border;
 
 public class App {
     final int rows = 7;
@@ -12,7 +11,7 @@ public class App {
     final int APP_WIDTH = 1280;
     final int APP_HEIGHT = 720;
 
-    private String[] buttonLabels = { "Cinema", "Concert", "Tournaments", "Credits", "Exit" };
+    private String[] buttonLabels = { "Cinema", "Concert", "Tournaments", "Exit" };
     private int buttonWidth = (int) (APP_WIDTH * 0.20);
     private int startX;
     private int startY;
@@ -26,9 +25,7 @@ public class App {
     Image cinemaImg;
     Image concertImg;
     Image tournamentImg;
-    Image creditsImg;
     Image exitImg;
-    ImageIcon seatIcon;
 
     int iconWidth = (int) (APP_WIDTH * 0.15);
     int iconHeight = 90;
@@ -56,50 +53,43 @@ public class App {
         protected void paintComponent(Graphics g) {
             Graphics2D g2d = (Graphics2D) g.create();
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
             java.awt.geom.RoundRectangle2D.Float shape = new java.awt.geom.RoundRectangle2D.Float(
                     0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
-
             g2d.setClip(shape);
             g2d.drawImage(img, 0, 0, getWidth(), getHeight(), null);
-
             if (getModel().isArmed()) {
                 g2d.setColor(new Color(0, 0, 0, 80));
                 g2d.fill(shape);
             }
-
             g2d.setClip(null);
             g2d.setColor(Color.DARK_GRAY);
             g2d.draw(shape);
-
             g2d.dispose();
         }
     }
 
     public App() {
-
-        homeWindowImg = new ImageIcon("imgs/homeWindowImg.jpg").getImage();
-        homeWindow = new JFrame();
-        buttons = new JButton[5];
-
-        cinemaImg = new ImageIcon("imgs/cinema.png").getImage();
-        concertImg = new ImageIcon("imgs/concert.png").getImage();
-        creditsImg = new ImageIcon("imgs/credits.png").getImage();
-        tournamentImg = new ImageIcon("imgs/tournament.png").getImage();
-        exitImg = new ImageIcon("imgs/exit.png").getImage();
-
         initializeGUI();
     }
 
     public void initializeGUI() {
+        homeWindowImg = new ImageIcon("imgs/homeWindowImg.jpg").getImage();
+        homeWindow = new JFrame();
         homeWindow.setTitle("Ticket Management System");
         homeWindow.setSize(APP_WIDTH, APP_HEIGHT);
         homeWindow.setLocationRelativeTo(null);
         homeWindow.setResizable(false);
         homeWindow.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+        buttons = new JButton[4];
+
+        cinemaImg = new ImageIcon("imgs/cinema.png").getImage();
+        concertImg = new ImageIcon("imgs/concert.png").getImage();
+        tournamentImg = new ImageIcon("imgs/tournament.png").getImage();
+        exitImg = new ImageIcon("imgs/exit.png").getImage();
+
         startX = 25 + (int) (APP_WIDTH * 0.3) / 2 - buttonWidth / 2;
-        startY = (APP_HEIGHT - (5 * 90 + 4 * 15) - (30)) / 2;
+        startY = (APP_HEIGHT - (4 * 90 + 3 * 15) - (30)) / 2;
 
         JPanel mainPanel = new JPanel() {
             @Override
@@ -108,53 +98,52 @@ public class App {
                 g.drawImage(homeWindowImg, 0, 0, APP_WIDTH, APP_HEIGHT, null);
             }
         };
+        mainPanel.setLayout(null);
 
         hiddenWindow = new JPanel();
         hiddenWindow.setBounds((int) (APP_WIDTH * 0.3), 0, (int) (APP_WIDTH * 0.7), APP_HEIGHT);
         hiddenWindow.setOpaque(false);
 
-        Image[] images = { cinemaImg, concertImg, tournamentImg, creditsImg, exitImg };
+        Image[] images = { cinemaImg, concertImg, tournamentImg, exitImg };
 
         for (int i = 0; i < images.length; i++) {
-
             buttons[i] = new RoundedImageButton(images[i], 15);
-
             buttons[i].setActionCommand(buttonLabels[i]);
-
             buttons[i].setBounds(startX, startY + i * (iconHeight + 20), iconWidth, iconHeight);
             buttons[i].addActionListener(new ButtonListener());
             mainPanel.add(buttons[i]);
         }
 
         mainPanel.add(hiddenWindow);
-        mainPanel.setLayout(null);
-
         homeWindow.add(mainPanel);
         homeWindow.setVisible(true);
     }
 
-    public void loadTicktets(String category) throws Exception {
-        Scanner input;
+    public void loadTickets(String category) throws Exception {
+        File file;
         if (category.equals("movies")) {
-            input = new Scanner(new File("dataset/movies.txt"));
+            file = new File("dataset/movies.txt");
         } else if (category.equals("concerts")) {
-            input = new Scanner(new File("dataset/concerts.txt"));
+            file = new File("dataset/concerts.txt");
         } else if (category.equals("tournaments")) {
-            input = new Scanner(new File("dataset/tournaments.txt"));
+            file = new File("dataset/tournaments.txt");
         } else {
-            return;
+            throw new IllegalArgumentException("Invalid category selected.");
         }
 
+        if (!file.exists()) {
+            throw new FileNotFoundException("Database file not found: " + file.getPath());
+        }
+
+        Scanner input = new Scanner(file);
         tickets = new ArrayList<>();
         while (input.hasNextLine()) {
             String line = input.nextLine();
-            if (line.isEmpty()) {
-                continue;
-            }
+            if (line.isEmpty()) continue;
             String[] parts = line.split(" ");
             if (parts.length != 3) {
                 input.close();
-                throw new Exception("Error reading file");
+                throw new IOException("Data corruption detected in file.");
             }
             tickets.add(new Ticket(parts[0], parts[1], Integer.parseInt(parts[2])));
         }
@@ -162,17 +151,15 @@ public class App {
     }
 
     @SuppressWarnings("unchecked")
-    public void loadSeats(String fileName) throws Exception {
+    public void loadSeats(String fileName) {
         seats = new LinkedList<>();
         File file = new File("savedFiles/" + fileName + ".dat");
 
         if (file.exists()) {
-            try {
-                ObjectInputStream read = new ObjectInputStream(new FileInputStream(file));
+            try (ObjectInputStream read = new ObjectInputStream(new FileInputStream(file))) {
                 seats = (LinkedList<Seat>) read.readObject();
-                read.close();
             } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
+                JOptionPane.showMessageDialog(homeWindow, "Failed to load seat data.", "File Error", JOptionPane.ERROR_MESSAGE);
             }
         } else {
             for (int i = 0; i < rows; i++) {
@@ -183,24 +170,22 @@ public class App {
         }
     }
 
-    public void saveSeatsToFile(LinkedList<Seat> seats, String movieTitle) {
+    public void saveSeatsToFile(LinkedList<Seat> seats, String title) {
         try {
-
             new File("savedFiles").mkdirs();
-            ObjectOutputStream write = new ObjectOutputStream(
-                    new FileOutputStream("savedFiles/" + movieTitle + ".dat"));
-            write.writeObject(seats);
-            write.close();
+            try (ObjectOutputStream write = new ObjectOutputStream(new FileOutputStream("savedFiles/" + title + ".dat"))) {
+                write.writeObject(seats);
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(homeWindow, "Failed to save booking.", "File Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void openCategoryUI(String datasetCategory, String frameTitleStr) {
         try {
-            loadTicktets(datasetCategory);
+            loadTickets(datasetCategory);
         } catch (Exception e1) {
-            e1.printStackTrace();
+            JOptionPane.showMessageDialog(homeWindow, e1.getMessage(), "Runtime Exception", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -228,13 +213,8 @@ public class App {
 
             ticketPanel.addMouseListener(new MouseAdapter() {
                 public void mouseClicked(MouseEvent e) {
-                    try {
-                        loadSeats(name);
-                    } catch (Exception e1) {
-                        e1.printStackTrace();
-                    }
-                    JFrame seatFrame = new JFrame(
-                            frameTitleStr + ": " + name + " | Time: " + time + " | Fare: " + fare);
+                    loadSeats(name);
+                    JFrame seatFrame = new JFrame(frameTitleStr + ": " + name + " | Time: " + time + " | Fare: " + fare);
                     seatFrame.setSize(600, 550);
                     seatFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
                     seatFrame.setLayout(new BorderLayout());
@@ -281,33 +261,44 @@ public class App {
                                     JTextField nameField = new JTextField();
                                     formContent.add(nameField);
 
-                                    formContent.add(new JLabel("CNIC:"));
+                                    formContent.add(new JLabel("CNIC (13 digits):"));
                                     JTextField cnicField = new JTextField();
                                     formContent.add(cnicField);
 
-                                    formContent.add(new JLabel("Phone:"));
+                                    formContent.add(new JLabel("Phone (11 digits):"));
                                     JTextField phoneField = new JTextField();
                                     formContent.add(phoneField);
 
                                     JButton confirm = new JButton("Confirm Booking");
                                     confirm.addActionListener(e2 -> {
-                                        if (!(nameField.getText().isEmpty() || cnicField.getText().isEmpty()
-                                                || phoneField.getText().isEmpty())) {
-                                            s.booked = true;
-                                            s.name = nameField.getText();
-                                            s.cnic = cnicField.getText();
-                                            s.phone = phoneField.getText();
+                                        String inputName = nameField.getText();
+                                        String inputCnic = cnicField.getText();
+                                        String inputPhone = phoneField.getText();
 
-                                            seatBtn.setForeground(Color.RED);
-                                            saveSeatsToFile(seats, name);
-
-                                            undoStack.push(new Seat(s));
-                                            redoStack.clear();
-                                            form.dispose();
-                                        } else {
-                                            JOptionPane.showMessageDialog(form, "One or more Fields are left empty!",
-                                                    "Error", JOptionPane.PLAIN_MESSAGE);
+                                        if (!ValidationUtils.isValidName(inputName)) {
+                                            JOptionPane.showMessageDialog(form, "Name cannot be empty.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                                            return;
                                         }
+                                        if (!ValidationUtils.isValidCNIC(inputCnic)) {
+                                            JOptionPane.showMessageDialog(form, "Invalid CNIC. Must be 13 digits.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                                            return;
+                                        }
+                                        if (!ValidationUtils.isValidPhone(inputPhone)) {
+                                            JOptionPane.showMessageDialog(form, "Invalid Phone. Must be 11 digits.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                                            return;
+                                        }
+
+                                        s.booked = true;
+                                        s.name = inputName;
+                                        s.cnic = inputCnic;
+                                        s.phone = inputPhone;
+
+                                        seatBtn.setForeground(Color.RED);
+                                        saveSeatsToFile(seats, name);
+
+                                        undoStack.push(new Seat(s));
+                                        redoStack.clear();
+                                        form.dispose();
                                     });
 
                                     formContent.add(new JLabel());
@@ -338,9 +329,9 @@ public class App {
                                         redoStack.push(temp);
 
                                         s.booked = false;
-                                        s.name = null;
-                                        s.phone = null;
-                                        s.cnic = null;
+                                        s.name = "";
+                                        s.phone = "";
+                                        s.cnic = "";
                                         sourceBtn.setForeground(Color.BLACK);
                                         saveSeatsToFile(seats, name);
                                         info.dispose();
@@ -380,8 +371,6 @@ public class App {
                                     }
                                 }
                             }
-                        } else {
-                            JOptionPane.showMessageDialog(seatFrame, "No recent bookings");
                         }
                     });
 
@@ -409,8 +398,6 @@ public class App {
                                     }
                                 }
                             }
-                        } else {
-                            JOptionPane.showMessageDialog(seatFrame, "No bookings");
                         }
                     });
 
@@ -445,24 +432,6 @@ public class App {
         public void actionPerformed(ActionEvent e) {
             if (e.getActionCommand().equals("Exit")) {
                 System.exit(0);
-            } else if (e.getActionCommand().equals("Credits")) {
-                String credits = "<html>" +
-                        "<div style='text-align: center; font-family: Georgia, serif;'>" +
-                        "<h2 style='color: #C8733A;'>Acknowledgments</h2>" +
-                        "<p style='font-size: 14px; color: #333;'>This work reflects the dedication of:</p>" +
-                        "<br>" +
-                        "<p style='font-size: 16px; color:rgb(190, 125, 55);'>Ukasha Anwar</p>" +
-                        "<br>" +
-                        "<p style='font-size: 14px; color: #555;'>Heartfelt thanks to:</p>" +
-                        "<br>" +
-                        "<p style='font-size: 14px; color: #555;'>Professors and Lab Instructors for their guidance</p>"
-                        +
-                        "<br>" +
-                        "<p style='font-size: 12px; color: #888888;'>\"Every piece of code is a story in the making. Write it with care, craft it with purpose.\"</p>"
-                        +
-                        "</div>" +
-                        "</html>";
-                JOptionPane.showMessageDialog(hiddenWindow, credits, "Credits", JOptionPane.PLAIN_MESSAGE);
             } else if (e.getActionCommand().equals("Cinema")) {
                 openCategoryUI("movies", "Cinema Tickets");
             } else if (e.getActionCommand().equals("Concert")) {
